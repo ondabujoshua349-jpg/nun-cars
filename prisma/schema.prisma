@@ -1,0 +1,72 @@
+// Prisma schema — https://pris.ly/d/prisma-schema
+// The connection URL lives in prisma.config.ts (read from DATABASE_URL).
+
+generator client {
+  provider            = "prisma-client"
+  // Generated into src/ so it is type-checked and compiled with the app.
+  // The output is git-ignored and regenerated on `npm install` (postinstall).
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id String @id @default(uuid())
+
+  email     String  @unique
+  hash      String
+  firstName String?
+  lastName  String?
+
+  bookmarks Bookmark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Bookmark {
+  id String @id @default(uuid())
+
+  title       String
+  description String?
+  link        String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Book {
+  id String @id @default(uuid())
+
+  title       String
+  description String?
+
+  authorId String
+  author   Author @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+}
+
+model Author {
+  id String @id @default(uuid())
+
+  name String
+  bio  String?
+
+  books Book[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

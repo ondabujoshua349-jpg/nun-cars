@@ -1,0 +1,55 @@
+# Local development.
+#   Database only:      docker compose up -d db        (then `npm run start:dev`)
+#   Full stack:         docker compose --profile app up --build
+name: nest-api
+
+services:
+  db:
+    image: postgres:17-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root123}
+      POSTGRES_DB: ${POSTGRES_DB:-nest}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    profiles: [app]
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root123}@db:5432/${POSTGRES_DB:-nest}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    profiles: [app]
+    build:
+      context: .
+      target: development
+    ports:
+      - '4000:4000'
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root123}@db:5432/${POSTGRES_DB:-nest}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-dev-only-secret}
+      CHOKIDAR_USEPOLLING: 'true'
+    volumes:
+      - ./src:/usr/src/app/src
+      # Keep the Prisma client generated in the image from being hidden by the bind mount
+      - /usr/src/app/src/generated
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pg_data:
